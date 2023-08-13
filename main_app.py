@@ -74,7 +74,6 @@ def winning_move(board, piece):
             if all(board[r-i][c+i] == piece for i in range(4)):
                 return True
 
-game_results = []
 
 # The code below runs the game of connect four. It uses a for loop to iterate through the list of games. 
 # Each game is played by two players, and the for loop iterates through each move in the game. 
@@ -83,6 +82,8 @@ game_results = []
 # The get_next_open_row function determines the row that the piece will be placed on. 
 # If the winning_move function returns True, the game ends and the winner is declared. 
 # If the for loop is completed without a winner, the game is declared a draw. 
+
+game_results = []
 
 for game, players in zip(games, player_groups):
     # Initialize an empty game board after each game
@@ -155,7 +156,7 @@ table_id = os.environ.get('CONNECT4_TABLE_ID')
 # Define the dataset reference
 table_ref = str(project_id) + "." + str(dataset_id) + "." + str(table_id)
 
-# Schema for the table
+# Schema of the table
 schema = [
     bigquery.SchemaField("player_rank", "INT64"),
     bigquery.SchemaField("player_id", "STRING"),
