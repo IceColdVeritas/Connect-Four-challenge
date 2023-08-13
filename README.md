@@ -34,6 +34,7 @@ export CONNECT4_DATASET_ID=your_dataset_id
 export CONNECT4_TABLE_ID=your_table_id
 ```
 Alternatively, you can also create a .env file in your project's root and assign the environmental variables there, e.g. ```CONNECT4_FILE_PATH="your_file_path"```.
+With this option, don't forget to reference your .env file in your .gitignore file.
 
 Install the python-dotenv library then using the following command:
 ```bash Python
