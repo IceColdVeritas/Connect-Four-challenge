@@ -1,5 +1,7 @@
 from itertools import groupby
 import numpy as np
+import pandas as pd
+import pandasql as ps
 from google.cloud import bigquery
 
 import os
@@ -94,6 +96,39 @@ for game, players in zip(games, player_groups):
 
 print(game_results)
 
+# Convert the game results to a data frame
+game_results_df = pd.DataFrame(game_results, columns=["player1", "player2", "winner"])
+print()
+print("Game results data frame:")
+print(game_results_df)
+
+# Query the data frame to aggregate the results
+query = """
+    with base as (
+        SELECT
+            player_id,
+            COUNT(*) AS games_played,
+            SUM(CASE WHEN winner = player_id THEN 1 ELSE 0 END) AS won,
+            SUM(CASE WHEN winner <> player_id THEN 1 ELSE 0 END) AS lost,
+            ROUND(SUM(CASE WHEN winner = player_id THEN 1 ELSE 0 END) * 100 / COUNT(*), 3) AS win_percentage
+        FROM (
+            SELECT player1 AS player_id, winner FROM game_results_df
+            UNION ALL
+            SELECT player2 AS player_id, winner FROM game_results_df
+        )
+        GROUP BY player_id
+    )
+    SELECT
+        ROW_NUMBER() OVER(ORDER BY won DESC) AS player_rank,
+        *
+    FROM base
+    ORDER BY player_rank ASC
+"""
+
+# Run the SQL query on the DataFrame
+result_df = ps.sqldf(query, locals())
+print(result_df)
+
 # Initialize a BigQuery client
 client = bigquery.Client()
 
@@ -103,101 +138,34 @@ dataset_id = os.environ.get('CONNECT4_DATASET_ID')
 table_id = os.environ.get('CONNECT4_TABLE_ID')
 
 # Define the dataset reference
-dataset_ref = client.dataset(dataset_id, project=project_id)
-logging.info(f"dataset_ref: {dataset_ref}")
-
-# Create the dataset if it doesn't exist
-try:
-    client.get_dataset(dataset_ref)
-except Exception as e:
-    dataset = bigquery.Dataset(dataset_ref)
-    dataset = client.create_dataset(dataset)
-    logging.info(f"Dataset {dataset_id} created.")
-
-# Define the table reference
-table_ref = dataset_ref.table(table_id)
-logging.info(f"table_ref: {table_ref}")
+table_ref = str(project_id) + "." + str(dataset_id) + "." + str(table_id)
 
 # Job configuration
 schema = [
-    bigquery.SchemaField("player_1", "STRING"),
-    bigquery.SchemaField("player_2", "STRING"),
-    bigquery.SchemaField("winner", "STRING"),
+    bigquery.SchemaField("player_rank", "INT64"),
+    bigquery.SchemaField("player_id", "STRING"),
+    bigquery.SchemaField("games_played", "INT64"),
+    bigquery.SchemaField("won", "INT64"),
+    bigquery.SchemaField("lost", "INT64"),
+    bigquery.SchemaField("win_percentage", "FLOAT64")
 ]
 logging.info(f"Schema is {schema}")
 
 # Define job configuration
 job_config = bigquery.LoadJobConfig(
     schema=schema,
-    source_format=bigquery.SourceFormat.NEWLINE_DELIMITED_JSON,
+    write_disposition="WRITE_TRUNCATE",
 )
 logging.debug("Job config: {}".format(job_config))
 
 # Load data into the table
-job = client.load_table_from_json(game_results, table_ref, job_config=job_config)
+job = client.load_table_from_dataframe(result_df, table_ref, job_config=job_config)
 logging.info(f"Job: {job}")
 job.result()  # Wait for the job to complete
 
-print("Data successfully loaded.")
-
-
-
-
-# def check_winner(board, player):
-#     # Check for vertical wins
-#     for col in range(7):
-#         for row in range(3):
-#             if all(board[row+i][col] == player for i in range(4)):
-#                 print('Found a vertical win')
-#                 return True
-    
-#     # Check for horizontal wins
-#     for row in range(6):
-#         for col in range(4):
-#             if all(board[row][col+i] == player for i in range(4)):
-#                 print('Found a horizontal win')
-#                 return True
-    
-#     # Check for diagonal wins (both directions)
-#     for row in range(3):
-#         for col in range(4):
-#             if all(board[row+i][col+i] == player for i in range(4)):
-#                 print('Found a diagonal win')
-#                 return True
-#             if all(board[row+i][col+3-i] == player for i in range(4)):
-#                 print('Found a diagonal win')
-#                 return True
-    
-#     return False
-
-
-# # Convert moves and update the board
-# def play_game(games, player_groups):
-#     for game, players in zip(games, player_groups):
-#         for i, moves in enumerate(game):
-#             player = players[i % 2]
-#             col = int(moves[1])
-#             col -= 1
-#             for row in range(5, -1, -1):
-#                 if board[row][col] == '':
-#                     board[row][col] = moves[0]
-#                     if check_winner(board, player):
-#                         print(f"{player} wins!")
-#                         break
-#                     break
-
-#             # If no winner is found, it's a draw
-#             else:
-#                 print("It's a draw!")
-
-#             # Print the board
-#             for row in board:
-#                 print(row)
-#             print()
-
-#             # Add a log statement
-#             print(f"Player {player} played in column {col+1}\n")
-
-
-# if __name__=='__main__':
-#     play_game(games, player_groups)
+table = client.get_table(table_ref)  # Make an API request.
+print(
+    "Loaded {} rows and {} columns to {}".format(
+        table.num_rows, len(table.schema), table_ref
+    )
+)
