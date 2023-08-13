@@ -5,14 +5,21 @@ import pandasql as ps
 from google.cloud import bigquery
 
 import os
+from dotenv import load_dotenv
 import logging
 
 
 ROW_COUNT = 6
 COLUMN_COUNT = 7
 
+# Load environment variable from .env file
+load_dotenv()
+
+# Access the environment variable for the file path
+FILE_PATH = os.environ.get('CONNECT4_FILE_PATH')
+
 # read the file
-with open("/Users/fidel/Downloads/connect_four/matchdata.txt", "r") as f:
+with open(FILE_PATH, "r") as f:
     lines = f.readlines()
     player_groups = []
     games = []
@@ -69,6 +76,14 @@ def winning_move(board, piece):
 
 game_results = []
 
+# The code below runs the game of connect four. It uses a for loop to iterate through the list of games. 
+# Each game is played by two players, and the for loop iterates through each move in the game. 
+# The player is determined by the index of the move in the game list. 
+# The game board is a list of lists, and the drop_piece function places the player's piece on the board. 
+# The get_next_open_row function determines the row that the piece will be placed on. 
+# If the winning_move function returns True, the game ends and the winner is declared. 
+# If the for loop is completed without a winner, the game is declared a draw. 
+
 for game, players in zip(games, player_groups):
     # Initialize an empty game board after each game
     board = create_board()
@@ -110,7 +125,7 @@ query = """
             COUNT(*) AS games_played,
             SUM(CASE WHEN winner = player_id THEN 1 ELSE 0 END) AS won,
             SUM(CASE WHEN winner <> player_id THEN 1 ELSE 0 END) AS lost,
-            ROUND(SUM(CASE WHEN winner = player_id THEN 1 ELSE 0 END) * 100 / COUNT(*), 3) AS win_percentage
+            ROUND(SUM(CASE WHEN winner = player_id THEN 1 ELSE 0 END) * 100 / COUNT(*), 2) AS win_percentage
         FROM (
             SELECT player1 AS player_id, winner FROM game_results_df
             UNION ALL
@@ -140,7 +155,7 @@ table_id = os.environ.get('CONNECT4_TABLE_ID')
 # Define the dataset reference
 table_ref = str(project_id) + "." + str(dataset_id) + "." + str(table_id)
 
-# Job configuration
+# Schema for the table
 schema = [
     bigquery.SchemaField("player_rank", "INT64"),
     bigquery.SchemaField("player_id", "STRING"),

@@ -33,5 +33,17 @@ export CONNECT4_DATASET_ID=your_project_id
 export CONNECT4_DATASET_ID=your_dataset_id
 export CONNECT4_TABLE_ID=your_table_id
 ```
+Alternatively, you can also create a .env file in your project's root and assign the environmental variables there, e.g. ```CONNECT4_FILE_PATH="your_file_path"```.
+
+Install the python-dotenv library then using the following command:
+```bash Python
+pip install python-dotenv
+```
 
 Without it your game results data will not be populated in your table in your bigquery project!
+
+## Connect to the bigquery database
+To have these results available as a table in bigquery, the google cloud sdk is required to be installed.
+Steps:
+    1. Install the gcloud<https://cloud.google.com/sdk/docs/install> CLI package
+    2. To initialize gcloud CLI, run ```gcloud init```

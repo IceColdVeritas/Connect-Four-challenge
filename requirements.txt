@@ -1,4 +1,6 @@
 numpy
 pandas
+pandasql
 google.cloud
 google-cloud-bigquery
+python-dotenv
